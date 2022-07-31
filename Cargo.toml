@@ -15,3 +15,7 @@ anyhow = "1"
 zip = "0.6.2"
 clap = { version = "3.2.16", features = ["cargo"] }
 yaml-rust = "0.4.5"
+
+[profile.release]
+opt-level = 's'
+lto = true
