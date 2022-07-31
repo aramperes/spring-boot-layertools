@@ -1,7 +1,7 @@
 # spring-boot-layertools
 
 Extract [Spring Boot layered JARs](https://spring.io/blog/2020/08/14/creating-efficient-docker-images-with-spring-boot-2-3)
-up to 10x faster than the built-in Java CLI.
+up to ✨10x faster✨ than the built-in Java CLI.
 
 [![crates.io](https://img.shields.io/crates/v/spring-boot-layertools.svg)](https://crates.io/crates/spring-boot-layertools)
 
