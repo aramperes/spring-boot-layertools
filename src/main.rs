@@ -1,4 +1,4 @@
-extern crate core;
+//! `sprint-boot-layertools` extracts a layered Spring Boot Jar.
 
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
@@ -54,6 +54,7 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
+/// Extracts the layer index from the Jar, in YAML form.
 fn layers_yaml(zip: &mut ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<Yaml> {
     let index = {
         let mut layers_idx = zip
@@ -73,18 +74,20 @@ fn layers_yaml(zip: &mut ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<Yaml> {
         .with_context(|| "Invalid layer index yaml: expected 1 root")
 }
 
+/// Lists the names of the layers inside the Jar.
 fn list(mut zip: ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<()> {
     layers_yaml(&mut zip)?
         .as_vec()
         .with_context(|| "Invalid layer index yaml: expected array")?
         .iter()
-        .flat_map(|elem| elem.as_hash())
-        .flat_map(|elem| elem.keys())
-        .flat_map(|elem| elem.as_str())
-        .for_each(|x| println!("{}", x));
+        .flat_map(|yaml| yaml.as_hash())
+        .flat_map(|hash| hash.keys())
+        .flat_map(|name| name.as_str())
+        .for_each(|name| println!("{}", name));
     Ok(())
 }
 
+/// Extracts the layers inside the Jar in their own directory.
 fn extract(mut zip: ZipArchive<Cursor<&[u8]>>, destination: &PathBuf) -> anyhow::Result<()> {
     std::fs::create_dir_all(destination)
         .with_context(|| "Failed to create destination directory")?;
@@ -113,6 +116,7 @@ fn extract(mut zip: ZipArchive<Cursor<&[u8]>>, destination: &PathBuf) -> anyhow:
         .try_for_each(|(name, files)| extract_layer(&mut zip, destination, name, files))
 }
 
+/// Extracts the files from a single layer from the Jar.
 fn extract_layer(
     zip: &mut ZipArchive<Cursor<&[u8]>>,
     destination: &PathBuf,
@@ -147,6 +151,8 @@ fn extract_layer(
 
             for zip_entry in &file_names {
                 let child_path = Path::new(zip_entry);
+
+                // Find all non-directory entries in the Jar that have the current entry as parent.
                 if !zip_entry.ends_with('/') && child_path.starts_with(entry) {
                     let output_path = layer_destination.join(child_path);
                     if let Some(parent_path) = output_path.parent() {
