@@ -53,7 +53,7 @@ jobs:
 
       - name: Install packages (Ubuntu)
         run: |
-          apt-get update && apt-get install -y musl-tools
+          sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
