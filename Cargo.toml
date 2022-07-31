@@ -1,0 +1,17 @@
+[package]
+name = "spring-boot-layertools"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Faster Spring Boot layertools extraction in Rust"
+authors = ["Aram Peres <aram.peres@gmail.com>"]
+repository = "https://github.com/aramperes/spring-boot-layertools"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mmarinus = "0.4.0"
+anyhow = "1"
+zip = "0.6.2"
+clap = { version = "3.2.16", features = ["cargo"] }
+yaml-rust = "0.4.5"
