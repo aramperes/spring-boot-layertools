@@ -1,6 +1,6 @@
 [package]
 name = "spring-boot-layertools"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Faster Spring Boot layertools extraction in Rust"
