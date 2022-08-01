@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ci/assets
-          cp "target/release/spring-boot-layertools" "ci/assets/spring-boot-layertools"
+          cp "target/x86_64-unknown-linux-musl/release/spring-boot-layertools" "ci/assets/spring-boot-layertools"
           echo "ASSET=spring-boot-layertools" >> $GITHUB_ENV
           cp Dockerfile "ci/assets/Dockerfile"
 
