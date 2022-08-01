@@ -32,6 +32,15 @@ fn main() -> anyhow::Result<()> {
                         .default_value(".")
                         .takes_value(true)
                         .value_parser(value_parser!(PathBuf)),
+                )
+                .arg(
+                    Arg::new("layers")
+                        .help("The layers to extract. By default, all layers are extracted")
+                        .long("layers")
+                        .alias("layer")
+                        .takes_value(true)
+                        .multiple_occurrences(true)
+                        .use_delimiter(true),
                 ),
         )
         .subcommand(Command::new("classpath").about("List classpath dependencies from the jar"))
@@ -57,6 +66,9 @@ fn main() -> anyhow::Result<()> {
             manifest,
             args.get_one::<PathBuf>("destination")
                 .with_context(|| "invalid extract destination")?,
+            args.get_many::<String>("layers")
+                .map(|iter| iter.map(String::as_str).collect())
+                .unwrap_or_default(),
         ),
         Some(("classpath", _)) => classpath(zip, manifest),
         _ => bail!("unexpected subcommand composition"),
@@ -137,6 +149,7 @@ fn extract(
     mut zip: ZipArchive<Cursor<&[u8]>>,
     manifest: JarManifest,
     destination: &PathBuf,
+    layers: Vec<&str>,
 ) -> anyhow::Result<()> {
     std::fs::create_dir_all(destination)
         .with_context(|| "Failed to create destination directory")?;
@@ -148,19 +161,21 @@ fn extract(
         .flat_map(|elem| elem.as_hash())
         .flat_map(|layers| layers.iter())
         .flat_map(|(name, files)| {
-            name.as_str().and_then(|name| {
-                files
-                    .as_vec()
-                    .map(|files| {
-                        files
-                            .iter()
-                            .flat_map(|file| file.as_str())
-                            .map(String::from)
-                            .collect::<Vec<String>>()
-                    })
-                    .or_else(|| Some(Vec::with_capacity(0)))
-                    .map(|files| (name, files))
-            })
+            name.as_str()
+                .filter(|name| layers.is_empty() || layers.contains(name))
+                .and_then(|name| {
+                    files
+                        .as_vec()
+                        .map(|files| {
+                            files
+                                .iter()
+                                .flat_map(|file| file.as_str())
+                                .map(String::from)
+                                .collect::<Vec<String>>()
+                        })
+                        .or_else(|| Some(Vec::with_capacity(0)))
+                        .map(|files| (name, files))
+                })
         })
         .try_for_each(|(name, files)| extract_layer(&mut zip, destination, name, files))
 }
