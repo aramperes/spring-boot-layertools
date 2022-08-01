@@ -173,7 +173,7 @@ fn extract(
                                 .map(String::from)
                                 .collect::<Vec<String>>()
                         })
-                        .or_else(|| Some(Vec::with_capacity(0)))
+                        .or_else(|| Some(Vec::default()))
                         .map(|files| (name, files))
                 })
         })
