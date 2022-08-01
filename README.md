@@ -7,25 +7,48 @@ up to ✨10x faster✨ than the built-in Java CLI.
 
 ## Usage
 
-This tool uses `mmap` to load the layered JAR in memory. This is to improve the performance of random-access reads
-when extracting the layers. **As such, this tool is only compatible with Linux**.
+This tool is intended to be used as a
+Docker [multi-stage builder](https://docs.docker.com/develop/develop-images/multistage-build/) image. For example:
 
-You can install this tool using `cargo install spring-boot-layertools`.
+```dockerfile
+FROM aramperes/spring-boot-layertools:latest as layertools
+# Copy your 'fat layered jar'
+COPY ./target/*.jar layered.jar
+# Extract layers
+RUN spring-boot-layertools layered.jar extract
 
-```shell
-$ ./spring-boot-layertools layered.jar extract --destination ./extracted
-# Java equivalent: java -Djarmode=layertools -jar layered.jar extract --destination ./extracted
+# Copy layers to your final image
+FROM eclipse-temurin:17-jre-alpine
+COPY --from=layertools /home/layertools/spring-boot-loader /
+RUN true
+COPY --from=layertools /home/layertools/dependencies /
+RUN true
+COPY --from=layertools /home/layertools/snapshot-dependencies /
+RUN true
+COPY --from=layertools /home/layertools/application /
+RUN true
 
-$ find ./extracted
-./extracted
-./extracted/spring-boot-loader
-./extracted/spring-boot-loader/org
-...
+ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
+```
 
-./extracted/dependencies
-./extracted/dependencies/BOOT-INF
-./extracted/dependencies/BOOT-INF/lib
-...
+## Command-line Options
+
+```
+USAGE:
+    spring-boot-layertools <jar> <SUBCOMMAND>
+
+ARGS:
+    <jar>    The layered Spring Boot jar to extract
+
+OPTIONS:
+    -h, --help       Print help information
+    -V, --version    Print version information
+
+SUBCOMMANDS:
+    classpath    List classpath dependencies from the jar
+    extract      Extracts layers from the jar for image creation
+    help         Print this message or the help of the given subcommand(s)
+    list         List layers from the jar that can be extracted
 ```
 
 ## License
