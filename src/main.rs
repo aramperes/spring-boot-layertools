@@ -8,6 +8,10 @@ use clap::{command, value_parser, Arg, Command};
 use yaml_rust::{Yaml, YamlLoader};
 use zip::ZipArchive;
 
+use crate::manifest::JarManifest;
+
+mod manifest;
+
 fn main() -> anyhow::Result<()> {
     let cmd = command!()
         .arg(
@@ -40,13 +44,16 @@ fn main() -> anyhow::Result<()> {
     let map = mmarinus::Map::load(jar, mmarinus::Private, mmarinus::perms::Read)
         .with_context(|| "Failed to open jar with mmap")?;
 
-    let zip = zip::ZipArchive::new(Cursor::new(map.as_ref()))
-        .with_context(|| "Failed to open jar archive")?;
+    let mut zip =
+        ZipArchive::new(Cursor::new(map.as_ref())).with_context(|| "Failed to open jar archive")?;
+
+    let manifest = JarManifest::from_zip(&mut zip)?;
 
     match cmd.subcommand() {
-        Some(("list", _)) => list(zip),
+        Some(("list", _)) => list(zip, manifest),
         Some(("extract", args)) => extract(
             zip,
+            manifest,
             args.get_one::<PathBuf>("destination")
                 .with_context(|| "invalid extract destination")?,
         ),
@@ -55,10 +62,13 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Extracts the layer index from the Jar, in YAML form.
-fn layers_yaml(zip: &mut ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<Yaml> {
+fn layers_yaml(
+    zip: &mut ZipArchive<Cursor<&[u8]>>,
+    manifest: &JarManifest,
+) -> anyhow::Result<Yaml> {
     let index = {
         let mut layers_idx = zip
-            .by_name("BOOT-INF/layers.idx")
+            .by_name(&manifest.layers_index)
             .with_context(|| "Failed to open layer index")?;
         let mut layers = String::new();
         layers_idx
@@ -75,8 +85,8 @@ fn layers_yaml(zip: &mut ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<Yaml> {
 }
 
 /// Lists the names of the layers inside the Jar.
-fn list(mut zip: ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<()> {
-    layers_yaml(&mut zip)?
+fn list(mut zip: ZipArchive<Cursor<&[u8]>>, manifest: JarManifest) -> anyhow::Result<()> {
+    layers_yaml(&mut zip, &manifest)?
         .as_vec()
         .with_context(|| "Invalid layer index yaml: expected array")?
         .iter()
@@ -88,11 +98,15 @@ fn list(mut zip: ZipArchive<Cursor<&[u8]>>) -> anyhow::Result<()> {
 }
 
 /// Extracts the layers inside the Jar in their own directory.
-fn extract(mut zip: ZipArchive<Cursor<&[u8]>>, destination: &PathBuf) -> anyhow::Result<()> {
+fn extract(
+    mut zip: ZipArchive<Cursor<&[u8]>>,
+    manifest: JarManifest,
+    destination: &PathBuf,
+) -> anyhow::Result<()> {
     std::fs::create_dir_all(destination)
         .with_context(|| "Failed to create destination directory")?;
 
-    layers_yaml(&mut zip)?
+    layers_yaml(&mut zip, &manifest)?
         .as_vec()
         .with_context(|| "Invalid layer index yaml: expected array")?
         .iter()
