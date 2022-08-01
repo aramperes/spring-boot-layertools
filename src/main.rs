@@ -34,6 +34,7 @@ fn main() -> anyhow::Result<()> {
                         .value_parser(value_parser!(PathBuf)),
                 ),
         )
+        .subcommand(Command::new("classpath").about("List classpath dependencies from the jar"))
         .subcommand_required(true)
         .get_matches();
 
@@ -57,6 +58,7 @@ fn main() -> anyhow::Result<()> {
             args.get_one::<PathBuf>("destination")
                 .with_context(|| "invalid extract destination")?,
         ),
+        Some(("classpath", _)) => classpath(zip, manifest),
         _ => bail!("unexpected subcommand composition"),
     }
 }
@@ -84,6 +86,29 @@ fn layers_yaml(
         .with_context(|| "Invalid layer index yaml: expected 1 root")
 }
 
+/// Extracts the classpath index from the Jar, in YAML form.
+fn classpath_yaml(
+    zip: &mut ZipArchive<Cursor<&[u8]>>,
+    manifest: &JarManifest,
+) -> anyhow::Result<Yaml> {
+    let index = {
+        let mut layers_idx = zip
+            .by_name(&manifest.classpath_index)
+            .with_context(|| "Failed to open classpath index")?;
+        let mut layers = String::new();
+        layers_idx
+            .read_to_string(&mut layers)
+            .with_context(|| "Failed to read classpath index")?;
+        layers
+    };
+
+    YamlLoader::load_from_str(&index)
+        .with_context(|| "Failed to parse layer index")?
+        .into_iter()
+        .next()
+        .with_context(|| "Invalid layer index yaml: expected 1 root")
+}
+
 /// Lists the names of the layers inside the Jar.
 fn list(mut zip: ZipArchive<Cursor<&[u8]>>, manifest: JarManifest) -> anyhow::Result<()> {
     layers_yaml(&mut zip, &manifest)?
@@ -93,6 +118,16 @@ fn list(mut zip: ZipArchive<Cursor<&[u8]>>, manifest: JarManifest) -> anyhow::Re
         .flat_map(|yaml| yaml.as_hash())
         .flat_map(|hash| hash.keys())
         .flat_map(|name| name.as_str())
+        .for_each(|name| println!("{}", name));
+    Ok(())
+}
+
+fn classpath(mut zip: ZipArchive<Cursor<&[u8]>>, manifest: JarManifest) -> anyhow::Result<()> {
+    classpath_yaml(&mut zip, &manifest)?
+        .as_vec()
+        .with_context(|| "Invalid classpath index yaml: expected array")?
+        .iter()
+        .flat_map(|yaml| yaml.as_str())
         .for_each(|name| println!("{}", name));
     Ok(())
 }
