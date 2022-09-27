@@ -10,7 +10,7 @@ use zip::ZipArchive;
 const PROP_LAYERS_INDEX: &str = "Spring-Boot-Layers-Index";
 const PROP_CLASSPATH_INDEX: &str = "Spring-Boot-Classpath-Index";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct JarManifest {
     pub layers_index: String,
     pub classpath_index: String,
